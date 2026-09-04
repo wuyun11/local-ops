@@ -53,8 +53,8 @@ public static class Launcher
         foreach (string cmd in commands)
         {
             int sp = cmd.IndexOf(' ');
-            string file = cmd.Substring(0, sp);
-            string args = cmd.Substring(sp + 1) + " -c \"import sys;print(sys.executable)\"";
+            string file = sp > 0 ? cmd.Substring(0, sp) : cmd;
+            string args = (sp > 0 ? cmd.Substring(sp + 1) : "") + " -c \"import sys;print(sys.executable)\"";
             try
             {
                 ProcessStartInfo psi = new ProcessStartInfo(file, args);

@@ -904,9 +904,12 @@ def _wm_close_soft(pid):
     带窗口进程收到 WM_CLOSE 后自行退出。返回是否成功发送。
     """
     try:
+        # taskkill 是控制台程序：不带 CREATE_NO_WINDOW 会为每次调用闪一个
+        # 控制台窗口（进程树有几个进程就闪几次）。
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         r = subprocess.run(
             ["taskkill", "/PID", str(int(pid))],
-            capture_output=True, timeout=3)
+            capture_output=True, timeout=3, creationflags=creationflags)
         return r.returncode == 0
     except Exception:
         return False
@@ -1037,12 +1040,17 @@ def spawn_managed(command, cwd, env, marker, log_fd):
     # 内层引号转义成 \"，cmd 会将带空格的可执行路径误当成字面命令名。
     inner = "echo %s & %s" % (marker, command)
     command_line = 'cmd.exe /d /s /c "%s"' % inner
-    creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | \
-        getattr(subprocess, "DETACHED_PROCESS", 0)
+    # 隐藏控制台窗口：不能用 DETACHED_PROCESS/CREATE_NO_WINDOW（剥离控制台后，
+    # cmd 的批处理子进程如 mvn.cmd -> java.exe 会各自新开可见控制台窗口）；
+    # 用 STARTUPINFO SW_HIDE 隐藏控制台，子进程继承隐藏控制台即全程无窗口。
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = subprocess.SW_HIDE
+    creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     return subprocess.Popen(
         command_line,
         cwd=cwd, stdout=log_fd, stderr=subprocess.STDOUT,
-        creationflags=creationflags, env=env,
+        creationflags=creationflags, env=env, startupinfo=startupinfo,
         stdin=subprocess.DEVNULL)
 
 
