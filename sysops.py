@@ -1039,7 +1039,13 @@ def spawn_managed(command, cwd, env, marker, log_fd):
     # 作为原始命令行传给 CreateProcess；若使用 argv 列表，subprocess 会把
     # 内层引号转义成 \"，cmd 会将带空格的可执行路径误当成字面命令名。
     inner = "echo %s & %s" % (marker, command)
-    command_line = 'cmd.exe /d /s /c "%s"' % inner
+    # 统一代码页为 UTF-8：cmd 自身提示（如 ^C 批处理终止问句）按系统 ANSI(GBK)
+    # 输出，与子进程的 UTF-8 混写进同一日志会乱码；chcp 65001 后全程 UTF-8。
+    command_line = 'cmd.exe /d /s /c "chcp 65001 >nul & echo %s & %s"' % (marker, command)
+    # 关闭子进程彩色输出（vite/node 等检测到控制台会输出 ANSI 转义码，日志无意义）
+    env = dict(env or os.environ)
+    env.setdefault("NO_COLOR", "1")
+    env.setdefault("TERM", "dumb")
     # 隐藏控制台窗口：不能用 DETACHED_PROCESS/CREATE_NO_WINDOW（剥离控制台后，
     # cmd 的批处理子进程如 mvn.cmd -> java.exe 会各自新开可见控制台窗口）；
     # 用 STARTUPINFO SW_HIDE 隐藏控制台，子进程继承隐藏控制台即全程无窗口。

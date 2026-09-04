@@ -2816,7 +2816,10 @@ def _tail_file_lines(path, count, block_size=65536):
                 chunks.append(chunk)
                 newlines += chunk.count(b"\n")
         data = b"".join(reversed(chunks))
-        return data.decode("utf-8", errors="replace").splitlines()[-count:]
+        text = data.decode("utf-8", errors="replace")
+        # 剥掉残留的 ANSI 转义序列（颜色/光标控制），日志只留纯文本
+        text = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", text)
+        return text.splitlines()[-count:]
     except OSError:
         return []
 
