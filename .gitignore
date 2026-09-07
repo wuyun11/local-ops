@@ -22,6 +22,8 @@ htmlcov/
 
 # Runtime state: contains local commands, paths, tokens, icons and logs
 data/
+console.log
+console.err.log
 
 # WorkBuddy 项目本地数据（记忆/会话状态），不纳入版本控制
 .workbuddy/
